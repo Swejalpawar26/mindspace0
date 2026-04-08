@@ -29,9 +29,9 @@ export function ChatBubble({ role, content, emotion, emotionIntensity }: ChatBub
           isUser ? "chat-bubble-user" : "chat-bubble-bot"
         }`}
       >
-        <ReactMarkdown className="prose prose-sm max-w-none [&>p]:m-0">
-          {content}
-        </ReactMarkdown>
+        <div className="prose prose-sm max-w-none [&>p]:m-0">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
       </div>
     </motion.div>
   );
