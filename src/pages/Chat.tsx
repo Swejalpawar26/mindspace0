@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { ChatBubble } from "@/components/ChatBubble";
 import { TypingIndicator } from "@/components/TypingIndicator";
+import { CrisisAlert, detectCrisis } from "@/components/CrisisAlert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
-import { motion } from "framer-motion";
+import { Send, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Message {
   id?: string;
@@ -23,6 +24,7 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [showCrisisAlert, setShowCrisisAlert] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,13 +69,19 @@ export default function Chat() {
   const sendMessage = async () => {
     if (!input.trim() || isTyping) return;
 
-    const userMessage: Message = { role: "user", content: input.trim() };
+    const text = input.trim();
+
+    // Crisis detection
+    if (detectCrisis(text)) {
+      setShowCrisisAlert(true);
+    }
+
+    const userMessage: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsTyping(true);
 
     try {
-      // Build context from recent messages
       const recentMessages = [...messages.slice(-10), userMessage].map((m) => ({
         role: m.role,
         content: m.content,
@@ -103,7 +111,6 @@ export default function Chat() {
         emotion_intensity: data.emotion_intensity || null,
       };
 
-      // Save user emotion on the user message
       const userWithEmotion = { ...userMessage, emotion: data.emotion, emotion_intensity: data.emotion_intensity };
       setMessages((prev) => {
         const updated = [...prev];
@@ -114,7 +121,6 @@ export default function Chat() {
       await saveMessage(userWithEmotion);
       await saveMessage(botMessage);
 
-      // Also save mood entry if emotion detected
       if (data.emotion && data.emotion !== "neutral") {
         await supabase.from("mood_entries").insert({
           user_id: user!.id,
@@ -138,20 +144,27 @@ export default function Chat() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="px-6 py-3 border-b border-border bg-card/30">
+        <div className="px-4 md:px-6 py-3 border-b border-border bg-card/30">
           <h2 className="font-bold text-foreground">MindSpace Chat</h2>
           <p className="text-xs text-muted-foreground">Your safe space to talk 💙</p>
         </div>
 
+        {/* Crisis Alert */}
+        <AnimatePresence>
+          {showCrisisAlert && <CrisisAlert onDismiss={() => setShowCrisisAlert(false)} />}
+        </AnimatePresence>
+
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4">
           {loadingHistory ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
           ) : messages.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center h-full text-center"
+              className="flex flex-col items-center justify-center h-full text-center px-4"
             >
               <div className="w-20 h-20 rounded-full gradient-calm flex items-center justify-center mb-4">
                 <span className="text-3xl">🧠</span>
@@ -181,7 +194,7 @@ export default function Chat() {
         </div>
 
         {/* Input */}
-        <div className="px-4 py-3 border-t border-border bg-card/50">
+        <div className="px-3 md:px-4 py-3 border-t border-border bg-card/50">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -193,13 +206,13 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
-              className="flex-1 rounded-xl h-12"
+              className="flex-1 rounded-xl h-11 md:h-12"
               disabled={isTyping}
             />
             <Button
               type="submit"
               size="icon"
-              className="h-12 w-12 rounded-xl"
+              className="h-11 w-11 md:h-12 md:w-12 rounded-xl"
               disabled={!input.trim() || isTyping}
             >
               <Send className="w-5 h-5" />
