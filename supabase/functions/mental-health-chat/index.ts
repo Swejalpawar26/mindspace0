@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const CRISIS_PATTERNS = [
+  "want to die", "wanna die", "kill myself", "end my life", "suicide", "suicidal",
+  "feel hopeless", "no reason to live", "can't go on", "give up on life",
+  "self harm", "self-harm", "hurt myself", "cutting myself",
+  "no one cares", "better off dead", "don't want to live",
+];
+
 const SYSTEM_PROMPT = `You are MindSpace, a compassionate AI mental health companion. Your role:
 
 1. EMOTIONAL SUPPORT: Be warm, empathetic, non-judgmental. Use a friendly Gen Z tone.
@@ -15,8 +22,13 @@ const SYSTEM_PROMPT = `You are MindSpace, a compassionate AI mental health compa
    - If angry → Acknowledge feelings, suggest cooling techniques
    - If happy → Celebrate with them, encourage positive habits
 4. SUGGESTIONS: Recommend journaling, breathing exercises, walks, gratitude practice
-5. BOUNDARIES: Never diagnose conditions. Never prescribe medication. If someone is in crisis, suggest professional help or hotlines.
-6. PERSONALIZATION: Reference previous messages in the conversation to show you remember and care.
+5. CRISIS SUPPORT: If the user expresses suicidal thoughts or self-harm, respond with utmost care. Validate their pain, express concern, and strongly encourage them to reach out to:
+   - iCall: 9152987821
+   - Vandrevala Foundation: 18602662345 (24/7)
+   - NIMHANS: 080-46110007
+   Never dismiss their feelings. Never say "just cheer up."
+6. BOUNDARIES: Never diagnose conditions. Never prescribe medication.
+7. PERSONALIZATION: Reference previous messages to show you remember and care.
 
 CRITICAL: You MUST respond with valid JSON in this exact format:
 {
@@ -37,6 +49,21 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Check for crisis in the last user message
+    const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
+    const isCrisis = lastUserMsg && CRISIS_PATTERNS.some((p) =>
+      lastUserMsg.content.toLowerCase().includes(p)
+    );
+
+    // Add crisis context if detected
+    const systemMessages = [{ role: "system", content: SYSTEM_PROMPT }];
+    if (isCrisis) {
+      systemMessages.push({
+        role: "system",
+        content: "IMPORTANT: The user may be in crisis. Respond with extreme care, empathy, and include helpline numbers. Set emotion to 'sad' with intensity 'high'.",
+      });
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -45,10 +72,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...messages,
-        ],
+        messages: [...systemMessages, ...messages],
       }),
     });
 
@@ -73,10 +97,8 @@ serve(async (req) => {
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from the response
     let parsed;
     try {
-      // Try to extract JSON from the response (might have markdown code blocks)
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawContent);
     } catch {
@@ -87,6 +109,7 @@ serve(async (req) => {
       reply: parsed.reply || rawContent,
       emotion: parsed.emotion || "neutral",
       emotion_intensity: parsed.emotion_intensity || "medium",
+      is_crisis: isCrisis || false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -96,6 +119,7 @@ serve(async (req) => {
       reply: "I'm here for you, but I'm having a moment. Let's try again soon. 🌿",
       emotion: "neutral",
       emotion_intensity: "low",
+      is_crisis: false,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
