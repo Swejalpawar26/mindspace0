@@ -2,13 +2,30 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { EmotionBadge } from "@/components/EmotionBadge";
-import { MoodChart } from "@/components/MoodChart";
 import { DailyQuote } from "@/components/DailyQuote";
 import { WellnessWidget } from "@/components/WellnessWidget";
+import { MoodChart } from "@/components/MoodChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, MessageCircle, TrendingUp, Heart, Loader2, Sparkles } from "lucide-react";
+import { MessageCircle, Clock, Sparkles, Loader2, CheckCircle2, ListTodo, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+
+interface ChatPreview {
+  content: string;
+  created_at: string;
+  role: string;
+}
+
+interface RoutineTask {
+  id: string;
+  time_slot: string;
+  title: string;
+  category: string;
+  icon: string | null;
+  is_completed: boolean;
+}
 
 interface MoodEntry {
   id: string;
@@ -20,9 +37,13 @@ interface MoodEntry {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [recentChats, setRecentChats] = useState<ChatPreview[]>([]);
+  const [routineTasks, setRoutineTasks] = useState<RoutineTask[]>([]);
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
-  const [totalMessages, setTotalMessages] = useState(0);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -30,48 +51,84 @@ export default function Dashboard() {
   }, [user]);
 
   const loadData = async () => {
-    const [moodRes, msgRes] = await Promise.all([
+    const [chatRes, routineRes, moodRes] = await Promise.all([
+      supabase
+        .from("chat_messages")
+        .select("content, created_at, role")
+        .eq("user_id", user!.id)
+        .eq("role", "user")
+        .order("created_at", { ascending: false })
+        .limit(5),
+      // Get active routine tasks
+      supabase
+        .from("daily_routines")
+        .select("id")
+        .eq("user_id", user!.id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle(),
       supabase
         .from("mood_entries")
         .select("*")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(100),
-      supabase
-        .from("chat_messages")
-        .select("id", { count: "exact" })
-        .eq("user_id", user!.id),
     ]);
+
+    setRecentChats((chatRes.data as ChatPreview[]) || []);
     setMoodEntries((moodRes.data as MoodEntry[]) || []);
-    setTotalMessages(msgRes.count || 0);
+
+    if (routineRes.data) {
+      const { data: tasks } = await supabase
+        .from("routine_tasks")
+        .select("id, time_slot, title, category, icon, is_completed")
+        .eq("routine_id", routineRes.data.id)
+        .order("sort_order", { ascending: true });
+      setRoutineTasks((tasks as RoutineTask[]) || []);
+    }
+
     setLoading(false);
+    generateAiSuggestions(moodRes.data || []);
   };
 
-  const moodCounts = moodEntries.reduce((acc, e) => {
-    acc[e.mood] = (acc[e.mood] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const generateAiSuggestions = async (moods: MoodEntry[]) => {
+    setLoadingSuggestions(true);
+    const suggestions: string[] = [];
 
-  const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
+    const recentMoods = moods.slice(0, 10);
+    const sadCount = recentMoods.filter((m) => m.mood === "sad").length;
+    const anxiousCount = recentMoods.filter((m) => m.mood === "anxious").length;
+    const angryCount = recentMoods.filter((m) => m.mood === "angry").length;
+    const happyCount = recentMoods.filter((m) => m.mood === "happy").length;
 
-  // Compute improvement insight
-  const getInsight = () => {
-    if (moodEntries.length < 3) return "Keep chatting to unlock mood insights! 🌟";
-    const recent = moodEntries.slice(0, 5);
-    const older = moodEntries.slice(5, 10);
-    const positiveRecent = recent.filter((e) => e.mood === "happy").length;
-    const positiveOlder = older.filter((e) => e.mood === "happy").length;
-    if (positiveRecent > positiveOlder) return "You're trending more positive recently! Keep it up! 🎉";
-    if (recent.some((e) => e.mood === "anxious")) return "You've been feeling anxious lately. Try some breathing exercises 🌬️";
-    return "You're doing great by checking in with yourself! 💪";
+    if (sadCount >= 3) {
+      suggestions.push("🌿 You've been feeling low lately. Try a 10-minute walk in nature or call a friend you trust.");
+      suggestions.push("📖 Writing your thoughts in the Journal can help process emotions. Give it a try!");
+      suggestions.push("🎵 Listening to uplifting music or a podcast can shift your mood. Here's a nudge to try it today!");
+    } else if (anxiousCount >= 3) {
+      suggestions.push("🌬️ You've been anxious recently. Try the box breathing exercise in the Wellness section.");
+      suggestions.push("🧘 A 5-minute meditation break could help. Consider adding it to your AI Routine.");
+      suggestions.push("📝 Grounding exercise: Name 5 things you see, 4 you hear, 3 you touch, 2 you smell, 1 you taste.");
+    } else if (angryCount >= 2) {
+      suggestions.push("💪 Channel that energy! A workout or run can help release frustration.");
+      suggestions.push("✍️ Try writing down what's bothering you in the Journal — it can be surprisingly relieving.");
+    } else if (happyCount >= 3) {
+      suggestions.push("🌟 You're on a great streak! Keep up the positive habits that got you here.");
+      suggestions.push("🎯 Great time to set new goals in AI Routine while your energy is high!");
+    } else if (moods.length === 0) {
+      suggestions.push("💬 Start chatting with MindSpace to get personalized wellness suggestions!");
+      suggestions.push("📋 Set up your AI Daily Routine for a structured, balanced day.");
+    } else {
+      suggestions.push("🌱 Keep checking in with yourself daily — consistency is key to mental wellness.");
+      suggestions.push("✨ Visit the Inspiration Hub for stories that might resonate with you today.");
+    }
+
+    setAiSuggestions(suggestions);
+    setLoadingSuggestions(false);
   };
 
-  const stats = [
-    { label: "Messages", value: totalMessages, icon: MessageCircle },
-    { label: "Mood Checks", value: moodEntries.length, icon: BarChart3 },
-    { label: "Top Mood", value: topMood ? topMood[0] : "—", icon: TrendingUp },
-    { label: "Streak", value: "1 day", icon: Heart },
-  ];
+  const completedTasks = routineTasks.filter((t) => t.is_completed).length;
+  const completionPercent = routineTasks.length > 0 ? Math.round((completedTasks / routineTasks.length) * 100) : 0;
 
   const container = {
     hidden: { opacity: 0 },
@@ -96,33 +153,106 @@ export default function Dashboard() {
               <DailyQuote />
             </motion.div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {stats.map((s) => (
-                <motion.div key={s.label} variants={item}>
-                  <Card className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
-                          <s.icon className="w-5 h-5 text-accent-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">{s.label}</p>
-                          <p className="text-lg font-bold text-foreground capitalize truncate">{s.value}</p>
-                        </div>
+            {/* Stats Grid - only Recent Chats and Streak */}
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <motion.div variants={item}>
+                <Card
+                  className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300 cursor-pointer"
+                  onClick={() => navigate("/chat")}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
+                        <MessageCircle className="w-5 h-5 text-accent-foreground" />
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Recent Chats</p>
+                        <p className="text-lg font-bold text-foreground">{recentChats.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              <motion.div variants={item}>
+                <Card className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-5 h-5 text-accent-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Routine Progress</p>
+                        <p className="text-lg font-bold text-foreground">{completionPercent}%</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
 
-            {/* Insight */}
+            {/* Current Routine Tasks */}
+            {routineTasks.length > 0 && (
+              <motion.div variants={item}>
+                <Card className="shadow-card border-0 rounded-2xl">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <ListTodo className="w-5 h-5 text-primary" /> Today's Routine
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => navigate("/ai-routine")} className="text-xs">
+                        View All <ChevronRight className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                    <Progress value={completionPercent} className="h-2 mt-2" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {routineTasks.filter((t) => !t.is_completed).slice(0, 5).map((task) => (
+                        <div key={task.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30">
+                          <span className="text-xs font-mono text-muted-foreground w-12">{task.time_slot}</span>
+                          <span className="text-base">{task.icon || "⭐"}</span>
+                          <span className="text-sm font-medium text-foreground flex-1">{task.title}</span>
+                        </div>
+                      ))}
+                      {routineTasks.filter((t) => !t.is_completed).length === 0 && (
+                        <div className="flex items-center gap-2 text-sm text-primary font-medium py-2">
+                          <CheckCircle2 className="w-4 h-4" /> All tasks completed! 🎉
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* AI Suggestions */}
             <motion.div variants={item}>
-              <Card className="shadow-card border-0 rounded-2xl bg-accent/30">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <Sparkles className="w-5 h-5 text-primary flex-shrink-0" />
-                  <p className="text-sm text-foreground">{getInsight()}</p>
+              <Card className="shadow-card border-0 rounded-2xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" /> AI Suggestions for You
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingSuggestions ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {aiSuggestions.map((s, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.1 }}
+                          className="p-3 rounded-xl bg-accent/30 text-sm text-foreground"
+                        >
+                          {s}
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
@@ -137,29 +267,33 @@ export default function Dashboard() {
               </motion.div>
             </div>
 
-            {/* Mood History */}
+            {/* Recent Chats */}
             <motion.div variants={item}>
               <Card className="shadow-card border-0 rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Moods</CardTitle>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MessageCircle className="w-5 h-5 text-primary" /> Recent Chats
+                    </CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => navigate("/chat")} className="text-xs">
+                      View All <ChevronRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {moodEntries.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">Start chatting to track your moods! 🌟</p>
+                  {recentChats.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">Start chatting to see your conversations here! 💬</p>
                   ) : (
                     <div className="space-y-2">
-                      {moodEntries.slice(0, 10).map((entry) => (
-                        <div key={entry.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <EmotionBadge emotion={entry.mood} intensity={entry.intensity} />
-                            {entry.note && (
-                              <span className="text-sm text-muted-foreground truncate max-w-[180px] md:max-w-[300px]">
-                                {entry.note}
-                              </span>
-                            )}
-                          </div>
+                      {recentChats.map((chat, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-accent/30 cursor-pointer transition-colors border-b border-border last:border-0"
+                          onClick={() => navigate("/chat")}
+                        >
+                          <p className="text-sm text-foreground truncate max-w-[250px] md:max-w-[400px]">{chat.content}</p>
                           <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                            {new Date(entry.created_at).toLocaleDateString()}
+                            {new Date(chat.created_at).toLocaleDateString()}
                           </span>
                         </div>
                       ))}
