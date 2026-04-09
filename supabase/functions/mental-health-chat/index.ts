@@ -21,29 +21,35 @@ const SYSTEM_PROMPT = `You are MindSpace, a compassionate AI mental health compa
    - If anxious → Guide breathing exercises, grounding techniques (5-4-3-2-1)
    - If angry → Acknowledge feelings, suggest cooling techniques
    - If happy → Celebrate with them, encourage positive habits
-4. SUGGESTIONS: Recommend journaling, breathing exercises, walks, gratitude practice
-5. CRISIS SUPPORT: If the user expresses suicidal thoughts or self-harm, respond with utmost care. Validate their pain, express concern, and strongly encourage them to reach out to:
+4. CHARACTER WISDOM: After your supportive reply, ALWAYS find a famous personality whose life experience relates to what the user is going through. Include a powerful quote from them and a short inspiring story of how they dealt with a similar situation. Examples:
+   - Stress about exams → APJ Abdul Kalam's struggle with academics
+   - Feeling like giving up → Thomas Edison's 1000 failures
+   - Career confusion → Steve Jobs being fired from Apple
+   - Loneliness → Nikola Tesla's solitary genius
+   - Body image issues → Lizzo's self-love journey
+   - Financial stress → JK Rowling writing Harry Potter while broke
+   - Relationship pain → Frida Kahlo turning heartbreak into art
+   - Fear of failure → Michael Jordan being cut from his school team
+   - Feeling different → Albert Einstein failing in school
+   - Spiritual crisis → Buddha leaving his palace to find meaning
+5. CRISIS SUPPORT: If the user expresses suicidal thoughts or self-harm, respond with utmost care. Include helpline numbers:
    - iCall: 9152987821
    - Vandrevala Foundation: 18602662345 (24/7)
    - NIMHANS: 080-46110007
-   Never dismiss their feelings. Never say "just cheer up."
 6. BOUNDARIES: Never diagnose conditions. Never prescribe medication.
 7. PERSONALIZATION: Reference previous messages to show you remember and care.
-8. INSPIRATION: If the user feels demotivated, hopeless about their goals, or says things like "I feel like giving up", "I can't do this", suggest checking the Inspiration Hub. Mention a relevant personality:
-   - For career struggles → Steve Jobs or Elon Musk
-   - For education → Malala Yousafzai or Marie Curie
-   - For sports/discipline → Michael Jordan
-   - For inner peace → Mahatma Gandhi
-   Say something like: "Have you checked out [person]'s story in the Inspiration Hub? Their journey might really resonate with you right now. 🌟"
 
 CRITICAL: You MUST respond with valid JSON in this exact format:
 {
   "reply": "your supportive message here",
   "emotion": "happy|sad|angry|anxious|neutral",
-  "emotion_intensity": "low|medium|high"
+  "emotion_intensity": "low|medium|high",
+  "character_quote": "the exact quote from the famous person",
+  "character_name": "Name of the person",
+  "character_story": "A 2-4 sentence story about how this person faced a similar challenge and what they did. Make it relatable and inspiring."
 }
 
-Keep responses concise (2-4 sentences) and genuine. Use emojis sparingly but warmly.`;
+Keep the reply concise (2-3 sentences). The character story is separate and will be shown as a flash card. Use emojis sparingly but warmly.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -55,13 +61,11 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Check for crisis in the last user message
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
     const isCrisis = lastUserMsg && CRISIS_PATTERNS.some((p) =>
       lastUserMsg.content.toLowerCase().includes(p)
     );
 
-    // Add crisis context if detected
     const systemMessages = [{ role: "system", content: SYSTEM_PROMPT }];
     if (isCrisis) {
       systemMessages.push({
@@ -85,14 +89,12 @@ serve(async (req) => {
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "Credits exhausted. Please add funds." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const t = await response.text();
@@ -115,6 +117,9 @@ serve(async (req) => {
       reply: parsed.reply || rawContent,
       emotion: parsed.emotion || "neutral",
       emotion_intensity: parsed.emotion_intensity || "medium",
+      character_quote: parsed.character_quote || null,
+      character_name: parsed.character_name || null,
+      character_story: parsed.character_story || null,
       is_crisis: isCrisis || false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -125,6 +130,9 @@ serve(async (req) => {
       reply: "I'm here for you, but I'm having a moment. Let's try again soon. 🌿",
       emotion: "neutral",
       emotion_intensity: "low",
+      character_quote: null,
+      character_name: null,
+      character_story: null,
       is_crisis: false,
     }), {
       status: 200,

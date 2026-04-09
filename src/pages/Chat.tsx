@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { ChatBubble } from "@/components/ChatBubble";
+import { StoryFlashCard } from "@/components/StoryFlashCard";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { CrisisAlert, detectCrisis } from "@/components/CrisisAlert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,9 @@ interface Message {
   content: string;
   emotion?: string | null;
   emotion_intensity?: string | null;
+  character_quote?: string | null;
+  character_name?: string | null;
+  character_story?: string | null;
 }
 
 export default function Chat() {
@@ -71,7 +75,6 @@ export default function Chat() {
 
     const text = input.trim();
 
-    // Crisis detection
     if (detectCrisis(text)) {
       setShowCrisisAlert(true);
     }
@@ -98,9 +101,7 @@ export default function Chat() {
         body: JSON.stringify({ messages: recentMessages }),
       });
 
-      if (!resp.ok) {
-        throw new Error("Failed to get response");
-      }
+      if (!resp.ok) throw new Error("Failed to get response");
 
       const data = await resp.json();
 
@@ -109,6 +110,9 @@ export default function Chat() {
         content: data.reply,
         emotion: data.emotion || null,
         emotion_intensity: data.emotion_intensity || null,
+        character_quote: data.character_quote || null,
+        character_name: data.character_name || null,
+        character_story: data.character_story || null,
       };
 
       const userWithEmotion = { ...userMessage, emotion: data.emotion, emotion_intensity: data.emotion_intensity };
@@ -143,18 +147,15 @@ export default function Chat() {
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
-        {/* Header */}
         <div className="px-4 md:px-6 py-3 border-b border-border bg-card/30">
           <h2 className="font-bold text-foreground">MindSpace Chat</h2>
           <p className="text-xs text-muted-foreground">Your safe space to talk 💙</p>
         </div>
 
-        {/* Crisis Alert */}
         <AnimatePresence>
           {showCrisisAlert && <CrisisAlert onDismiss={() => setShowCrisisAlert(false)} />}
         </AnimatePresence>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4">
           {loadingHistory ? (
             <div className="flex items-center justify-center h-full">
@@ -176,13 +177,21 @@ export default function Chat() {
             </motion.div>
           ) : (
             messages.map((msg, i) => (
-              <ChatBubble
-                key={i}
-                role={msg.role}
-                content={msg.content}
-                emotion={msg.emotion}
-                emotionIntensity={msg.emotion_intensity}
-              />
+              <div key={i}>
+                <ChatBubble
+                  role={msg.role}
+                  content={msg.content}
+                  emotion={msg.emotion}
+                  emotionIntensity={msg.emotion_intensity}
+                />
+                {msg.role === "assistant" && msg.character_quote && msg.character_name && (
+                  <StoryFlashCard
+                    quote={msg.character_quote}
+                    character={msg.character_name}
+                    story={msg.character_story || ""}
+                  />
+                )}
+              </div>
             ))
           )}
           {isTyping && (
@@ -193,7 +202,6 @@ export default function Chat() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
         <div className="px-3 md:px-4 py-3 border-t border-border bg-card/50">
           <form
             onSubmit={(e) => {
