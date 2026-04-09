@@ -6,92 +6,99 @@
 
 @layer base {
   :root {
-    --background: 200 30% 98%;
-    --foreground: 210 25% 15%;
+    --background: 240 30% 97%;
+    --foreground: 260 25% 15%;
 
-    --card: 200 25% 97%;
-    --card-foreground: 210 25% 15%;
+    --card: 250 30% 98%;
+    --card-foreground: 260 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 25% 15%;
+    --popover-foreground: 260 25% 15%;
 
-    --primary: 199 89% 48%;
+    --primary: 270 70% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 152 57% 90%;
-    --secondary-foreground: 155 40% 25%;
+    --secondary: 200 60% 90%;
+    --secondary-foreground: 210 40% 25%;
 
-    --muted: 200 20% 94%;
-    --muted-foreground: 210 15% 50%;
+    --muted: 250 20% 94%;
+    --muted-foreground: 260 15% 50%;
 
-    --accent: 152 50% 85%;
-    --accent-foreground: 155 40% 20%;
+    --accent: 320 50% 90%;
+    --accent-foreground: 320 40% 25%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 90%;
-    --input: 200 20% 90%;
-    --ring: 199 89% 48%;
+    --border: 260 20% 90%;
+    --input: 260 20% 90%;
+    --ring: 270 70% 60%;
 
     --radius: 1rem;
 
-    --sidebar-background: 200 25% 97%;
-    --sidebar-foreground: 210 20% 30%;
-    --sidebar-primary: 199 89% 48%;
+    --sidebar-background: 250 30% 98%;
+    --sidebar-foreground: 260 20% 30%;
+    --sidebar-primary: 270 70% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 152 50% 90%;
-    --sidebar-accent-foreground: 155 40% 20%;
-    --sidebar-border: 200 20% 90%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-accent: 320 50% 92%;
+    --sidebar-accent-foreground: 320 40% 20%;
+    --sidebar-border: 260 20% 90%;
+    --sidebar-ring: 270 70% 60%;
 
     /* Custom tokens */
-    --chat-user: 199 89% 48%;
+    --chat-user: 270 70% 60%;
     --chat-user-foreground: 0 0% 100%;
-    --chat-bot: 152 50% 92%;
-    --chat-bot-foreground: 155 40% 18%;
+    --chat-bot: 320 50% 94%;
+    --chat-bot-foreground: 320 40% 18%;
     --emotion-happy: 45 100% 60%;
     --emotion-sad: 220 70% 60%;
     --emotion-angry: 0 72% 55%;
     --emotion-anxious: 30 90% 55%;
-    --emotion-neutral: 200 15% 60%;
-    --gradient-calm: linear-gradient(135deg, hsl(199 89% 48%), hsl(152 57% 60%));
-    --shadow-soft: 0 4px 20px -4px hsl(199 89% 48% / 0.15);
-    --shadow-card: 0 2px 12px -2px hsl(210 25% 15% / 0.08);
+    --emotion-neutral: 260 15% 60%;
+    --gradient-calm: linear-gradient(135deg, hsl(270 70% 60%), hsl(320 60% 65%));
+    --gradient-fairy: linear-gradient(135deg, hsl(270 70% 60%), hsl(200 80% 65%), hsl(320 60% 65%));
+    --shadow-soft: 0 4px 20px -4px hsl(270 70% 60% / 0.2);
+    --shadow-card: 0 2px 16px -2px hsl(270 50% 40% / 0.08);
+    --shadow-glow: 0 0 20px hsl(270 70% 60% / 0.15);
   }
 
   .dark {
-    --background: 210 25% 8%;
-    --foreground: 200 20% 92%;
-    --card: 210 22% 12%;
-    --card-foreground: 200 20% 92%;
-    --popover: 210 22% 12%;
-    --popover-foreground: 200 20% 92%;
-    --primary: 199 89% 48%;
+    --background: 260 25% 8%;
+    --foreground: 250 20% 92%;
+    --card: 260 22% 12%;
+    --card-foreground: 250 20% 92%;
+    --popover: 260 22% 12%;
+    --popover-foreground: 250 20% 92%;
+    --primary: 270 70% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 155 30% 18%;
-    --secondary-foreground: 152 50% 85%;
-    --muted: 210 20% 16%;
-    --muted-foreground: 200 15% 55%;
-    --accent: 155 30% 18%;
-    --accent-foreground: 152 50% 85%;
+    --secondary: 320 30% 18%;
+    --secondary-foreground: 320 50% 85%;
+    --muted: 260 20% 16%;
+    --muted-foreground: 250 15% 55%;
+    --accent: 320 30% 18%;
+    --accent-foreground: 320 50% 85%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 18%;
-    --input: 210 20% 18%;
-    --ring: 199 89% 48%;
-    --sidebar-background: 210 22% 10%;
-    --sidebar-foreground: 200 20% 85%;
-    --sidebar-primary: 199 89% 48%;
+    --border: 260 20% 18%;
+    --input: 260 20% 18%;
+    --ring: 270 70% 60%;
+    --sidebar-background: 260 22% 10%;
+    --sidebar-foreground: 250 20% 85%;
+    --sidebar-primary: 270 70% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 155 30% 18%;
-    --sidebar-accent-foreground: 152 50% 85%;
-    --sidebar-border: 210 20% 18%;
-    --sidebar-ring: 199 89% 48%;
-    --chat-user: 199 89% 48%;
+    --sidebar-accent: 320 30% 18%;
+    --sidebar-accent-foreground: 320 50% 85%;
+    --sidebar-border: 260 20% 18%;
+    --sidebar-ring: 270 70% 60%;
+    --chat-user: 270 70% 55%;
     --chat-user-foreground: 0 0% 100%;
-    --chat-bot: 155 30% 18%;
-    --chat-bot-foreground: 152 50% 85%;
+    --chat-bot: 320 30% 18%;
+    --chat-bot-foreground: 320 50% 85%;
+    --gradient-calm: linear-gradient(135deg, hsl(270 70% 45%), hsl(320 60% 50%));
+    --gradient-fairy: linear-gradient(135deg, hsl(270 70% 45%), hsl(200 80% 50%), hsl(320 60% 50%));
+    --shadow-soft: 0 4px 20px -4px hsl(270 70% 50% / 0.3);
+    --shadow-card: 0 2px 16px -2px hsl(270 50% 30% / 0.15);
+    --shadow-glow: 0 0 25px hsl(270 70% 50% / 0.2);
   }
 }
 
@@ -122,6 +129,10 @@
     background: var(--gradient-calm);
   }
 
+  .gradient-fairy {
+    background: var(--gradient-fairy);
+  }
+
   .shadow-soft {
     box-shadow: var(--shadow-soft);
   }
@@ -129,6 +140,108 @@
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Fairy tale card styles */
+  .fairy-card {
+    @apply rounded-xl border bg-card text-card-foreground;
+    box-shadow: var(--shadow-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fairy-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gradient-fairy);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .fairy-card:hover {
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-2px);
+  }
+
+  .fairy-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Fairy glow effect */
+  .fairy-glow {
+    position: relative;
+  }
+
+  .fairy-glow::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: var(--gradient-fairy);
+    opacity: 0.3;
+    filter: blur(8px);
+    z-index: -1;
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  /* Fairy button */
+  .fairy-btn {
+    @apply bg-primary text-primary-foreground;
+    background: var(--gradient-fairy);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .fairy-btn:hover {
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-1px);
+  }
+
+  .fairy-btn::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent,
+      hsla(0, 0%, 100%, 0.1),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+  }
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.1); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
 }
 
 /* Scrollbar styling */

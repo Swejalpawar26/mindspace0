@@ -10,6 +10,8 @@ import Signup from "./pages/Signup";
 import Chat from "./pages/Chat";
 import Dashboard from "./pages/Dashboard";
 import Journal from "./pages/Journal";
+import AIRoutine from "./pages/AIRoutine";
+import Inspiration from "./pages/Inspiration";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +45,8 @@ const App = () => (
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
+            <Route path="/ai-routine" element={<ProtectedRoute><AIRoutine /></ProtectedRoute>} />
+            <Route path="/inspiration" element={<ProtectedRoute><Inspiration /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
