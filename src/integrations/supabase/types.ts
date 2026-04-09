@@ -44,6 +44,51 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_routines: {
+        Row: {
+          created_at: string
+          free_time: string | null
+          goals: string[]
+          id: string
+          interests: string[]
+          is_active: boolean
+          routine_data: Json | null
+          sleep_time: string
+          stress_level: string
+          updated_at: string
+          user_id: string
+          wake_up_time: string
+        }
+        Insert: {
+          created_at?: string
+          free_time?: string | null
+          goals?: string[]
+          id?: string
+          interests?: string[]
+          is_active?: boolean
+          routine_data?: Json | null
+          sleep_time: string
+          stress_level?: string
+          updated_at?: string
+          user_id: string
+          wake_up_time: string
+        }
+        Update: {
+          created_at?: string
+          free_time?: string | null
+          goals?: string[]
+          id?: string
+          interests?: string[]
+          is_active?: boolean
+          routine_data?: Json | null
+          sleep_time?: string
+          stress_level?: string
+          updated_at?: string
+          user_id?: string
+          wake_up_time?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
@@ -130,6 +175,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      routine_tasks: {
+        Row: {
+          category: string
+          created_at: string
+          icon: string | null
+          id: string
+          is_completed: boolean
+          routine_id: string
+          sort_order: number
+          time_slot: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_completed?: boolean
+          routine_id: string
+          sort_order?: number
+          time_slot: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_completed?: boolean
+          routine_id?: string
+          sort_order?: number
+          time_slot?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routine_tasks_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "daily_routines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
