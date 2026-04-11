@@ -22,6 +22,7 @@ export type Database = {
           emotion_intensity: string | null
           id: string
           role: string
+          session_id: string | null
           user_id: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           emotion_intensity?: string | null
           id?: string
           role: string
+          session_id?: string | null
           user_id: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           emotion_intensity?: string | null
           id?: string
           role?: string
+          session_id?: string | null
           user_id?: string
         }
         Relationships: []
