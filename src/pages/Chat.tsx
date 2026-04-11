@@ -8,8 +8,10 @@ import { TypingIndicator } from "@/components/TypingIndicator";
 import { CrisisAlert, detectCrisis } from "@/components/CrisisAlert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 
 interface Message {
   id?: string;
@@ -24,37 +26,47 @@ interface Message {
 
 export default function Chat() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [showCrisisAlert, setShowCrisisAlert] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
-    loadHistory();
-  }, [user]);
+    const existingSession = searchParams.get("session");
+    if (existingSession) {
+      setSessionId(existingSession);
+      loadSession(existingSession);
+    } else {
+      // New chat session
+      const newId = uuidv4();
+      setSessionId(newId);
+      setLoadingHistory(false);
+    }
+  }, [user, searchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const loadHistory = async () => {
+  const loadSession = async (sid: string) => {
     const { data } = await supabase
       .from("chat_messages")
       .select("*")
       .eq("user_id", user!.id)
-      .order("created_at", { ascending: true })
-      .limit(50);
+      .eq("session_id", sid)
+      .order("created_at", { ascending: true });
 
     if (data) {
       setMessages(data.map((m: any) => ({
         id: m.id,
         role: m.role as "user" | "assistant",
         content: m.content,
-        emotion: m.emotion,
-        emotion_intensity: m.emotion_intensity,
       })));
     }
     setLoadingHistory(false);
@@ -67,17 +79,15 @@ export default function Chat() {
       content: msg.content,
       emotion: msg.emotion || null,
       emotion_intensity: msg.emotion_intensity || null,
+      session_id: sessionId,
     });
   };
 
   const sendMessage = async () => {
     if (!input.trim() || isTyping) return;
-
     const text = input.trim();
 
-    if (detectCrisis(text)) {
-      setShowCrisisAlert(true);
-    }
+    if (detectCrisis(text)) setShowCrisisAlert(true);
 
     const userMessage: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
@@ -91,7 +101,6 @@ export default function Chat() {
       }));
 
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mental-health-chat`;
-
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -102,7 +111,6 @@ export default function Chat() {
       });
 
       if (!resp.ok) throw new Error("Failed to get response");
-
       const data = await resp.json();
 
       const botMessage: Message = {
@@ -115,14 +123,9 @@ export default function Chat() {
         character_story: data.character_story || null,
       };
 
-      const userWithEmotion = { ...userMessage, emotion: data.emotion, emotion_intensity: data.emotion_intensity };
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = userWithEmotion;
-        return [...updated, botMessage];
-      });
+      setMessages((prev) => [...prev, botMessage]);
 
-      await saveMessage(userWithEmotion);
+      await saveMessage(userMessage);
       await saveMessage(botMessage);
 
       if (data.emotion && data.emotion !== "neutral") {
@@ -133,12 +136,11 @@ export default function Chat() {
           note: userMessage.content.slice(0, 200),
         });
       }
-    } catch (error) {
-      const errorMsg: Message = {
-        role: "assistant",
-        content: "I'm having trouble connecting right now. Take a deep breath, and try again in a moment. 🌿",
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "I'm having trouble connecting right now. Take a deep breath, and try again in a moment. 🌿" },
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -147,9 +149,14 @@ export default function Chat() {
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
-        <div className="px-4 md:px-6 py-3 border-b border-border bg-card/30">
-          <h2 className="font-bold text-foreground">MindSpace Chat</h2>
-          <p className="text-xs text-muted-foreground">Your safe space to talk 💙</p>
+        <div className="px-4 md:px-6 py-3 border-b border-border bg-card/30 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-foreground">MindSpace Chat</h2>
+            <p className="text-xs text-muted-foreground">Your safe space to talk 💙</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/chat-history")} className="rounded-xl gap-1.5 text-xs">
+            <History className="w-4 h-4" /> History
+          </Button>
         </div>
 
         <AnimatePresence>
@@ -162,11 +169,7 @@ export default function Chat() {
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
           ) : messages.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center h-full text-center px-4"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="w-20 h-20 rounded-full gradient-calm flex items-center justify-center mb-4">
                 <span className="text-3xl">🧠</span>
               </div>
@@ -178,18 +181,9 @@ export default function Chat() {
           ) : (
             messages.map((msg, i) => (
               <div key={i}>
-                <ChatBubble
-                  role={msg.role}
-                  content={msg.content}
-                  emotion={msg.emotion}
-                  emotionIntensity={msg.emotion_intensity}
-                />
+                <ChatBubble role={msg.role} content={msg.content} />
                 {msg.role === "assistant" && msg.character_quote && msg.character_name && (
-                  <StoryFlashCard
-                    quote={msg.character_quote}
-                    character={msg.character_name}
-                    story={msg.character_story || ""}
-                  />
+                  <StoryFlashCard quote={msg.character_quote} character={msg.character_name} story={msg.character_story || ""} />
                 )}
               </div>
             ))
@@ -203,26 +197,9 @@ export default function Chat() {
         </div>
 
         <div className="px-3 md:px-4 py-3 border-t border-border bg-card/50">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage();
-            }}
-            className="flex gap-2"
-          >
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1 rounded-xl h-11 md:h-12"
-              disabled={isTyping}
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="h-11 w-11 md:h-12 md:w-12 rounded-xl"
-              disabled={!input.trim() || isTyping}
-            >
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." className="flex-1 rounded-xl h-11 md:h-12" disabled={isTyping} />
+            <Button type="submit" size="icon" className="h-11 w-11 md:h-12 md:w-12 rounded-xl" disabled={!input.trim() || isTyping}>
               <Send className="w-5 h-5" />
             </Button>
           </form>
