@@ -12,12 +12,6 @@ import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
-interface ChatPreview {
-  content: string;
-  created_at: string;
-  role: string;
-}
-
 interface RoutineTask {
   id: string;
   time_slot: string;
@@ -38,12 +32,11 @@ interface MoodEntry {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [recentChats, setRecentChats] = useState<ChatPreview[]>([]);
   const [routineTasks, setRoutineTasks] = useState<RoutineTask[]>([]);
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [chatCount, setChatCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -51,31 +44,13 @@ export default function Dashboard() {
   }, [user]);
 
   const loadData = async () => {
-    const [chatRes, routineRes, moodRes] = await Promise.all([
-      supabase
-        .from("chat_messages")
-        .select("content, created_at, role")
-        .eq("user_id", user!.id)
-        .eq("role", "user")
-        .order("created_at", { ascending: false })
-        .limit(5),
-      // Get active routine tasks
-      supabase
-        .from("daily_routines")
-        .select("id")
-        .eq("user_id", user!.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("mood_entries")
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(100),
+    const [chatCountRes, routineRes, moodRes] = await Promise.all([
+      supabase.from("chat_messages").select("session_id", { count: "exact", head: true }).eq("user_id", user!.id).eq("role", "user"),
+      supabase.from("daily_routines").select("id").eq("user_id", user!.id).eq("is_active", true).limit(1).maybeSingle(),
+      supabase.from("mood_entries").select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
     ]);
 
-    setRecentChats((chatRes.data as ChatPreview[]) || []);
+    setChatCount(chatCountRes.count || 0);
     setMoodEntries((moodRes.data as MoodEntry[]) || []);
 
     if (routineRes.data) {
@@ -88,93 +63,92 @@ export default function Dashboard() {
     }
 
     setLoading(false);
-    generateAiSuggestions(moodRes.data || []);
+    generateSmartSuggestions(moodRes.data || []);
   };
 
-  const generateAiSuggestions = async (moods: MoodEntry[]) => {
-    setLoadingSuggestions(true);
+  const generateSmartSuggestions = async (moods: MoodEntry[]) => {
     const suggestions: string[] = [];
-
-    const recentMoods = moods.slice(0, 10);
+    const recentMoods = moods.slice(0, 15);
     const sadCount = recentMoods.filter((m) => m.mood === "sad").length;
     const anxiousCount = recentMoods.filter((m) => m.mood === "anxious").length;
     const angryCount = recentMoods.filter((m) => m.mood === "angry").length;
     const happyCount = recentMoods.filter((m) => m.mood === "happy").length;
 
+    // Based on mood patterns from chats
     if (sadCount >= 3) {
-      suggestions.push("🌿 You've been feeling low lately. Try a 10-minute walk in nature or call a friend you trust.");
-      suggestions.push("📖 Writing your thoughts in the Journal can help process emotions. Give it a try!");
-      suggestions.push("🎵 Listening to uplifting music or a podcast can shift your mood. Here's a nudge to try it today!");
+      suggestions.push("🌿 You've been feeling low recently. Try a 10-minute nature walk or call someone you trust.");
+      suggestions.push("📝 Journaling can help process emotions — write what's on your mind today.");
+      suggestions.push("🎵 Try listening to uplifting music. Small shifts in environment can help your mood.");
     } else if (anxiousCount >= 3) {
-      suggestions.push("🌬️ You've been anxious recently. Try the box breathing exercise in the Wellness section.");
-      suggestions.push("🧘 A 5-minute meditation break could help. Consider adding it to your AI Routine.");
-      suggestions.push("📝 Grounding exercise: Name 5 things you see, 4 you hear, 3 you touch, 2 you smell, 1 you taste.");
+      suggestions.push("🌬️ Anxiety has been frequent. Try the box breathing technique: 4s in, 4s hold, 4s out.");
+      suggestions.push("🧘 Add a 5-minute meditation to your routine — it compounds over time.");
+      suggestions.push("📝 Grounding exercise: Name 5 things you see, 4 hear, 3 touch, 2 smell, 1 taste.");
     } else if (angryCount >= 2) {
-      suggestions.push("💪 Channel that energy! A workout or run can help release frustration.");
-      suggestions.push("✍️ Try writing down what's bothering you in the Journal — it can be surprisingly relieving.");
+      suggestions.push("💪 Channel that energy — a quick workout can help release frustration.");
+      suggestions.push("✍️ Writing about what's bothering you can be surprisingly relieving.");
     } else if (happyCount >= 3) {
-      suggestions.push("🌟 You're on a great streak! Keep up the positive habits that got you here.");
-      suggestions.push("🎯 Great time to set new goals in AI Routine while your energy is high!");
+      suggestions.push("🌟 You're on a positive streak! Keep doing what you're doing.");
+      suggestions.push("🎯 Great energy to set new goals in your AI Routine!");
     } else if (moods.length === 0) {
       suggestions.push("💬 Start chatting with MindSpace to get personalized wellness suggestions!");
       suggestions.push("📋 Set up your AI Daily Routine for a structured, balanced day.");
     } else {
-      suggestions.push("🌱 Keep checking in with yourself daily — consistency is key to mental wellness.");
-      suggestions.push("✨ Visit the Inspiration Hub for stories that might resonate with you today.");
+      suggestions.push("🌱 Keep checking in daily — consistency is key to mental wellness.");
+      suggestions.push("✨ Visit Inspiration Hub for stories that might resonate with you.");
+    }
+
+    // Routine-based suggestions
+    const { data: incompleteTasks } = await supabase
+      .from("routine_tasks")
+      .select("category, title")
+      .eq("user_id", user!.id)
+      .eq("is_completed", false)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (incompleteTasks) {
+      const skippedExercise = incompleteTasks.filter((t) => t.category === "exercise").length;
+      const skippedMeditation = incompleteTasks.filter((t) => t.category === "meditation").length;
+      if (skippedExercise >= 3) suggestions.push("💪 You've been skipping exercise. Even a 10-min walk counts — start small!");
+      if (skippedMeditation >= 2) suggestions.push("🧘 Meditation has been missed — try a 3-minute breathing session today.");
     }
 
     setAiSuggestions(suggestions);
-    setLoadingSuggestions(false);
   };
 
   const completedTasks = routineTasks.filter((t) => t.is_completed).length;
   const completionPercent = routineTasks.length > 0 ? Math.round((completedTasks / routineTasks.length) * 100) : 0;
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.08 } },
-  };
-  const item = {
-    hidden: { opacity: 0, y: 12 },
-    show: { opacity: 1, y: 0 },
-  };
+  const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+  const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
   return (
     <AppLayout>
       <div className="p-4 md:p-6 overflow-y-auto h-full">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
         ) : (
           <motion.div variants={container} initial="hidden" animate="show" className="max-w-5xl mx-auto space-y-6">
-            {/* Daily Quote */}
-            <motion.div variants={item}>
-              <DailyQuote />
-            </motion.div>
+            <motion.div variants={item}><DailyQuote /></motion.div>
 
-            {/* Stats Grid - only Recent Chats and Streak */}
             <div className="grid grid-cols-2 gap-3 md:gap-4">
               <motion.div variants={item}>
-                <Card
-                  className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300 cursor-pointer"
-                  onClick={() => navigate("/chat")}
-                >
+                <Card className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300 cursor-pointer" onClick={() => navigate("/chat-history")}>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
                         <MessageCircle className="w-5 h-5 text-accent-foreground" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Recent Chats</p>
-                        <p className="text-lg font-bold text-foreground">{recentChats.length}</p>
+                        <p className="text-xs text-muted-foreground">Total Messages</p>
+                        <p className="text-lg font-bold text-foreground">{chatCount}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </motion.div>
               <motion.div variants={item}>
-                <Card className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300">
+                <Card className="shadow-card border-0 rounded-2xl hover:shadow-soft transition-shadow duration-300 cursor-pointer" onClick={() => navigate("/ai-routine")}>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
@@ -190,18 +164,13 @@ export default function Dashboard() {
               </motion.div>
             </div>
 
-            {/* Current Routine Tasks */}
             {routineTasks.length > 0 && (
               <motion.div variants={item}>
                 <Card className="shadow-card border-0 rounded-2xl">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ListTodo className="w-5 h-5 text-primary" /> Today's Routine
-                      </CardTitle>
-                      <Button variant="ghost" size="sm" onClick={() => navigate("/ai-routine")} className="text-xs">
-                        View All <ChevronRight className="w-3 h-3 ml-1" />
-                      </Button>
+                      <CardTitle className="text-lg flex items-center gap-2"><ListTodo className="w-5 h-5 text-primary" /> Today's Routine</CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => navigate("/ai-routine")} className="text-xs">View All <ChevronRight className="w-3 h-3 ml-1" /></Button>
                     </div>
                     <Progress value={completionPercent} className="h-2 mt-2" />
                   </CardHeader>
@@ -225,83 +194,26 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* AI Suggestions */}
             <motion.div variants={item}>
               <Card className="shadow-card border-0 rounded-2xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" /> AI Suggestions for You
-                  </CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /> AI Suggestions for You</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loadingSuggestions ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {aiSuggestions.map((s, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.1 }}
-                          className="p-3 rounded-xl bg-accent/30 text-sm text-foreground"
-                        >
-                          {s}
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Charts + Wellness */}
-            <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-              <motion.div variants={item} className="md:col-span-2">
-                <MoodChart entries={moodEntries} />
-              </motion.div>
-              <motion.div variants={item}>
-                <WellnessWidget />
-              </motion.div>
-            </div>
-
-            {/* Recent Chats */}
-            <motion.div variants={item}>
-              <Card className="shadow-card border-0 rounded-2xl">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MessageCircle className="w-5 h-5 text-primary" /> Recent Chats
-                    </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => navigate("/chat")} className="text-xs">
-                      View All <ChevronRight className="w-3 h-3 ml-1" />
-                    </Button>
+                  <div className="space-y-2">
+                    {aiSuggestions.map((s, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
+                        className="p-3 rounded-xl bg-accent/30 text-sm text-foreground">{s}</motion.div>
+                    ))}
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {recentChats.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">Start chatting to see your conversations here! 💬</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {recentChats.map((chat, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-accent/30 cursor-pointer transition-colors border-b border-border last:border-0"
-                          onClick={() => navigate("/chat")}
-                        >
-                          <p className="text-sm text-foreground truncate max-w-[250px] md:max-w-[400px]">{chat.content}</p>
-                          <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                            {new Date(chat.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </motion.div>
+
+            <div className="grid md:grid-cols-3 gap-4 md:gap-6">
+              <motion.div variants={item} className="md:col-span-2"><MoodChart entries={moodEntries} /></motion.div>
+              <motion.div variants={item}><WellnessWidget /></motion.div>
+            </div>
           </motion.div>
         )}
       </div>
