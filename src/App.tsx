@@ -16,6 +16,7 @@ import RoutineHistory from "./pages/RoutineHistory";
 import Inspiration from "./pages/Inspiration";
 import Helpline from "./pages/Helpline";
 import SettingsPage from "./pages/SettingsPage";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/routine-history" element={<ProtectedRoute><RoutineHistory /></ProtectedRoute>} />
               <Route path="/inspiration" element={<ProtectedRoute><Inspiration /></ProtectedRoute>} />
               <Route path="/helpline" element={<ProtectedRoute><Helpline /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

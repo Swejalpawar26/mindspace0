@@ -1,4 +1,4 @@
-import { MessageCircle, LayoutDashboard, BookOpen, Settings, LogOut, Wand2, Sparkles, Phone, History } from "lucide-react";
+import { MessageCircle, LayoutDashboard, BookOpen, Settings, LogOut, Wand2, Sparkles, Phone, History, User } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,7 @@ const items = [
   { title: "AI Routine", url: "/ai-routine", icon: Wand2 },
   { title: "Inspiration", url: "/inspiration", icon: Sparkles },
   { title: "Helpline", url: "/helpline", icon: Phone },
+  { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
