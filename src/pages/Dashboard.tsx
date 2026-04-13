@@ -190,41 +190,6 @@ export default function Dashboard() {
               </motion.div>
             </div>
 
-            {/* Recent Chat History */}
-            <motion.div variants={item}>
-              <Card className="shadow-card border-0 rounded-2xl">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2"><MessageCircle className="w-5 h-5 text-primary" /> Recent Chats</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => navigate("/chat-history")} className="text-xs">View All <ChevronRight className="w-3 h-3 ml-1" /></Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {recentChats.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No chats yet. Start a conversation! 💬</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {recentChats.map((chat) => (
-                        <div
-                          key={chat.session_id}
-                          className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => navigate(`/chat?session=${chat.session_id}`)}
-                        >
-                          <MessageCircle className="w-4 h-4 text-primary flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{chat.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(chat.last_message_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {chat.message_count} msgs
-                            </p>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
 
             {routineTasks.length > 0 && (
               <motion.div variants={item}>
