@@ -53,6 +53,12 @@ export default function AIRoutine() {
     if (user) loadActiveRoutine();
   }, [user]);
 
+  const isToday = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  };
+
   const loadActiveRoutine = async () => {
     const { data: routine } = await supabase
       .from("daily_routines")
@@ -64,6 +70,22 @@ export default function AIRoutine() {
       .maybeSingle();
 
     if (routine) {
+      // Check if routine is from today — if not, archive it and show fresh config
+      if (!isToday(routine.created_at)) {
+        await supabase.from("daily_routines").update({ is_active: false }).eq("id", routine.id);
+        // Keep previous config for convenience
+        setWakeUp(routine.wake_up_time);
+        setSleepTime(routine.sleep_time);
+        setGoals(routine.goals || []);
+        setStressLevel(routine.stress_level);
+        setFreeTime(routine.free_time || "4");
+        setInterests(routine.interests || []);
+        setActiveRoutineId(null);
+        setShowConfig(true);
+        setLoading(false);
+        return;
+      }
+
       setActiveRoutineId(routine.id);
       setWakeUp(routine.wake_up_time);
       setSleepTime(routine.sleep_time);
