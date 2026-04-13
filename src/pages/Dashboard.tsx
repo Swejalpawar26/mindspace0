@@ -29,6 +29,13 @@ interface MoodEntry {
   created_at: string;
 }
 
+interface ChatSession {
+  session_id: string;
+  title: string;
+  last_message_at: string;
+  message_count: number;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -36,7 +43,7 @@ export default function Dashboard() {
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chatCount, setChatCount] = useState(0);
+  const [recentChats, setRecentChats] = useState<ChatSession[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -44,13 +51,39 @@ export default function Dashboard() {
   }, [user]);
 
   const loadData = async () => {
-    const [chatCountRes, routineRes, moodRes] = await Promise.all([
-      supabase.from("chat_messages").select("session_id", { count: "exact", head: true }).eq("user_id", user!.id).eq("role", "user"),
+    const [chatRes, routineRes, moodRes] = await Promise.all([
+      supabase.from("chat_messages").select("session_id, content, created_at, role").eq("user_id", user!.id).order("created_at", { ascending: false }),
       supabase.from("daily_routines").select("id").eq("user_id", user!.id).eq("is_active", true).limit(1).maybeSingle(),
       supabase.from("mood_entries").select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
     ]);
 
-    setChatCount(chatCountRes.count || 0);
+    // Build chat sessions with titles
+    if (chatRes.data) {
+      const sessionMap = new Map<string, { messages: typeof chatRes.data }>();
+      chatRes.data.forEach((m) => {
+        const sid = m.session_id || "default";
+        if (!sessionMap.has(sid)) sessionMap.set(sid, { messages: [] });
+        sessionMap.get(sid)!.messages.push(m);
+      });
+
+      const sessionList: ChatSession[] = [];
+      sessionMap.forEach((val, key) => {
+        const userMsgs = val.messages.filter((m) => m.role === "user");
+        const firstUserMsg = userMsgs[userMsgs.length - 1]?.content || "Chat session";
+        // Generate a short title from the first user message
+        const title = firstUserMsg.length > 50 ? firstUserMsg.slice(0, 50) + "..." : firstUserMsg;
+        sessionList.push({
+          session_id: key,
+          title,
+          last_message_at: val.messages[0]?.created_at || "",
+          message_count: val.messages.length,
+        });
+      });
+
+      sessionList.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+      setRecentChats(sessionList.slice(0, 4));
+    }
+
     setMoodEntries((moodRes.data as MoodEntry[]) || []);
 
     if (routineRes.data) {
@@ -74,30 +107,23 @@ export default function Dashboard() {
     const angryCount = recentMoods.filter((m) => m.mood === "angry").length;
     const happyCount = recentMoods.filter((m) => m.mood === "happy").length;
 
-    // Based on mood patterns from chats
     if (sadCount >= 3) {
       suggestions.push("🌿 You've been feeling low recently. Try a 10-minute nature walk or call someone you trust.");
       suggestions.push("📝 Journaling can help process emotions — write what's on your mind today.");
-      suggestions.push("🎵 Try listening to uplifting music. Small shifts in environment can help your mood.");
     } else if (anxiousCount >= 3) {
-      suggestions.push("🌬️ Anxiety has been frequent. Try the box breathing technique: 4s in, 4s hold, 4s out.");
-      suggestions.push("🧘 Add a 5-minute meditation to your routine — it compounds over time.");
-      suggestions.push("📝 Grounding exercise: Name 5 things you see, 4 hear, 3 touch, 2 smell, 1 taste.");
+      suggestions.push("🌬️ Anxiety has been frequent. Try box breathing: 4s in, 4s hold, 4s out.");
+      suggestions.push("🧘 Add a 5-minute meditation to your routine.");
     } else if (angryCount >= 2) {
       suggestions.push("💪 Channel that energy — a quick workout can help release frustration.");
-      suggestions.push("✍️ Writing about what's bothering you can be surprisingly relieving.");
     } else if (happyCount >= 3) {
       suggestions.push("🌟 You're on a positive streak! Keep doing what you're doing.");
-      suggestions.push("🎯 Great energy to set new goals in your AI Routine!");
     } else if (moods.length === 0) {
       suggestions.push("💬 Start chatting with MindSpace to get personalized wellness suggestions!");
       suggestions.push("📋 Set up your AI Daily Routine for a structured, balanced day.");
     } else {
       suggestions.push("🌱 Keep checking in daily — consistency is key to mental wellness.");
-      suggestions.push("✨ Visit Inspiration Hub for stories that might resonate with you.");
     }
 
-    // Routine-based suggestions
     const { data: incompleteTasks } = await supabase
       .from("routine_tasks")
       .select("category, title")
@@ -109,8 +135,8 @@ export default function Dashboard() {
     if (incompleteTasks) {
       const skippedExercise = incompleteTasks.filter((t) => t.category === "exercise").length;
       const skippedMeditation = incompleteTasks.filter((t) => t.category === "meditation").length;
-      if (skippedExercise >= 3) suggestions.push("💪 You've been skipping exercise. Even a 10-min walk counts — start small!");
-      if (skippedMeditation >= 2) suggestions.push("🧘 Meditation has been missed — try a 3-minute breathing session today.");
+      if (skippedExercise >= 3) suggestions.push("💪 You've been skipping exercise. Even a 10-min walk counts!");
+      if (skippedMeditation >= 2) suggestions.push("🧘 Meditation has been missed — try a 3-minute breathing session.");
     }
 
     setAiSuggestions(suggestions);
@@ -140,8 +166,8 @@ export default function Dashboard() {
                         <MessageCircle className="w-5 h-5 text-accent-foreground" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Recent Chats</p>
-                        <p className="text-lg font-bold text-foreground">{chatCount}</p>
+                        <p className="text-xs text-muted-foreground">Chat History</p>
+                        <p className="text-lg font-bold text-foreground">{recentChats.length} chats</p>
                       </div>
                     </div>
                   </CardContent>
@@ -163,6 +189,7 @@ export default function Dashboard() {
                 </Card>
               </motion.div>
             </div>
+
 
             {routineTasks.length > 0 && (
               <motion.div variants={item}>
