@@ -38,7 +38,7 @@ export function AppSidebar() {
           <div className="w-9 h-9 rounded-full gradient-calm flex items-center justify-center flex-shrink-0 fairy-glow">
             <MessageCircle className="w-5 h-5 text-primary-foreground" />
           </div>
-          {!collapsed && <span className="font-bold text-lg text-foreground">MindSpace</span>}
+          {!collapsed && <span className="font-bold text-lg text-foreground">MindMate</span>}
         </div>
         <SidebarGroup>
           <SidebarGroupContent>

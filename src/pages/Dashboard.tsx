@@ -140,7 +140,7 @@ export default function Dashboard() {
                         <MessageCircle className="w-5 h-5 text-accent-foreground" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Total Messages</p>
+                        <p className="text-xs text-muted-foreground">Recent Chats</p>
                         <p className="text-lg font-bold text-foreground">{chatCount}</p>
                       </div>
                     </div>
