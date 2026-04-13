@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 interface ChatSession {
   session_id: string;
-  first_message: string;
+  title: string;
   last_message_at: string;
   message_count: number;
 }
@@ -44,10 +44,11 @@ export default function ChatHistory() {
       const sessionList: ChatSession[] = [];
       sessionMap.forEach((val, key) => {
         const userMsgs = val.messages.filter((m) => m.role === "user");
-        const firstUser = userMsgs[userMsgs.length - 1];
+        const firstUserMsg = userMsgs[userMsgs.length - 1]?.content || "Chat session";
+        const title = firstUserMsg.length > 60 ? firstUserMsg.slice(0, 60) + "..." : firstUserMsg;
         sessionList.push({
           session_id: key,
-          first_message: firstUser?.content || "Chat session",
+          title,
           last_message_at: val.messages[0]?.created_at || "",
           message_count: val.messages.length,
         });
@@ -60,7 +61,11 @@ export default function ChatHistory() {
   };
 
   const deleteSession = async (sessionId: string) => {
-    await supabase.from("chat_messages").delete().eq("session_id", sessionId).eq("user_id", user!.id);
+    const { error } = await supabase.from("chat_messages").delete().eq("session_id", sessionId).eq("user_id", user!.id);
+    if (error) {
+      toast.error("Failed to delete chat session");
+      return;
+    }
     setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
     toast.success("Chat session deleted");
   };
@@ -104,7 +109,7 @@ export default function ChatHistory() {
                         <MessageCircle className="w-5 h-5 text-accent-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{session.first_message}</p>
+                        <p className="text-sm font-medium text-foreground truncate">{session.title}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground">
                             {new Date(session.last_message_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
