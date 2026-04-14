@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,7 @@ interface StoredRoutine {
   stress_level: string;
   free_time: string | null;
   interests: string[];
-  routine_data: unknown;
+  routine_data: Json | null;
   is_active: boolean;
 }
 
