@@ -154,7 +154,7 @@ export default function AIRoutine() {
 
     const { data: routine, error } = await supabase
       .from("daily_routines")
-      .insert({
+      .insert([{
         user_id: user!.id,
         wake_up_time: templateRoutine.wake_up_time,
         sleep_time: templateRoutine.sleep_time,
@@ -166,7 +166,7 @@ export default function AIRoutine() {
         is_active: isActive,
         created_at: timestamp,
         updated_at: timestamp,
-      })
+      }])
       .select()
       .single();
 
@@ -411,11 +411,11 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
 
         const { data: routine, error } = await supabase
           .from("daily_routines")
-          .insert({
+          .insert([{
             user_id: user!.id,
             ...routineDetails,
             created_at: new Date().toISOString(),
-          })
+          }])
           .select()
           .single();
 
@@ -423,6 +423,8 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
         routineId = routine.id;
         routineCreatedAt = routine.created_at;
       }
+
+      if (!routineId) throw new Error("Routine could not be saved");
 
       const taskInserts = normalized.map((task, index) => ({
         routine_id: routineId,
