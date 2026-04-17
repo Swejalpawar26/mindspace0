@@ -114,20 +114,20 @@ export default function Dashboard() {
     const happyCount = recentMoods.filter((m) => m.mood === "happy").length;
 
     if (sadCount >= 3) {
-      suggestions.push("🌿 You've been feeling low recently. Try a 10-minute nature walk or call someone you trust.");
-      suggestions.push("📝 Journaling can help process emotions — write what's on your mind today.");
+      suggestions.push("You've been feeling low recently. Try a 10-minute nature walk or call someone you trust.");
+      suggestions.push("Journaling can help process emotions — write what's on your mind today.");
     } else if (anxiousCount >= 3) {
-      suggestions.push("🌬️ Anxiety has been frequent. Try box breathing: 4s in, 4s hold, 4s out.");
-      suggestions.push("🧘 Add a 5-minute meditation to your routine.");
+      suggestions.push("Anxiety has been frequent. Try box breathing: 4s in, 4s hold, 4s out.");
+      suggestions.push("Add a 5-minute meditation to your routine.");
     } else if (angryCount >= 2) {
-      suggestions.push("💪 Channel that energy — a quick workout can help release frustration.");
+      suggestions.push("Channel that energy — a quick workout can help release frustration.");
     } else if (happyCount >= 3) {
-      suggestions.push("🌟 You're on a positive streak! Keep doing what you're doing.");
+      suggestions.push("You're on a positive streak! Keep doing what you're doing.");
     } else if (moods.length === 0) {
-      suggestions.push("💬 Start chatting with MindSpace to get personalized wellness suggestions!");
-      suggestions.push("📋 Set up your AI Daily Routine for a structured, balanced day.");
+      suggestions.push("Start chatting with MindSpace to get personalized wellness suggestions!");
+      suggestions.push("Set up your AI Daily Routine for a structured, balanced day.");
     } else {
-      suggestions.push("🌱 Keep checking in daily — consistency is key to mental wellness.");
+      suggestions.push("Keep checking in daily — consistency is key to mental wellness.");
     }
 
     const { data: incompleteTasks } = await supabase
@@ -141,8 +141,8 @@ export default function Dashboard() {
     if (incompleteTasks) {
       const skippedExercise = incompleteTasks.filter((t) => t.category === "exercise").length;
       const skippedMeditation = incompleteTasks.filter((t) => t.category === "meditation").length;
-      if (skippedExercise >= 3) suggestions.push("💪 You've been skipping exercise. Even a 10-min walk counts!");
-      if (skippedMeditation >= 2) suggestions.push("🧘 Meditation has been missed — try a 3-minute breathing session.");
+      if (skippedExercise >= 3) suggestions.push("You've been skipping exercise. Even a 10-min walk counts!");
+      if (skippedMeditation >= 2) suggestions.push("Meditation has been missed — try a 3-minute breathing session.");
     }
 
     setAiSuggestions(suggestions);
@@ -212,13 +212,13 @@ export default function Dashboard() {
                       {routineTasks.filter((t) => !t.is_completed).slice(0, 5).map((task) => (
                         <div key={task.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30">
                           <span className="text-xs font-mono text-muted-foreground w-12">{task.time_slot}</span>
-                          <span className="text-base">{task.icon || "⭐"}</span>
+                          <span className="text-base">{task.icon || "•"}</span>
                           <span className="text-sm font-medium text-foreground flex-1">{task.title}</span>
                         </div>
                       ))}
                       {routineTasks.filter((t) => !t.is_completed).length === 0 && (
                         <div className="flex items-center gap-2 text-sm text-primary font-medium py-2">
-                          <CheckCircle2 className="w-4 h-4" /> All tasks completed! 🎉
+                          <CheckCircle2 className="w-4 h-4" /> All tasks completed!
                         </div>
                       )}
                     </div>
@@ -253,3 +253,4 @@ export default function Dashboard() {
     </AppLayout>
   );
 }
+
