@@ -4,17 +4,17 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { ArrowLeft, Quote, Star, Sparkles, BookOpen } from "lucide-react";
+import { ArrowLeft, Quote, Star, Sparkles, BookOpen, User } from "lucide-react";
 import { DailyQuote } from "@/components/DailyQuote";
 import { STORIES, type InspirationStory } from "@/lib/inspiration";
 
 type Story = InspirationStory;
 
 const CATEGORY_LABELS: Record<string, string> = {
-  entrepreneur: "🚀 Entrepreneur",
-  scientist: "🔬 Scientist",
-  athlete: "🏆 Athlete",
-  spiritual: "🕊️ Spiritual Leader",
+  entrepreneur: "Entrepreneur",
+  scientist: "Scientist",
+  athlete: "Athlete",
+  spiritual: "Spiritual Leader",
 };
 
 export default function Inspiration() {
@@ -49,7 +49,7 @@ export default function Inspiration() {
             </Button>
 
             <div className="text-center mb-6">
-              <span className="text-6xl block mb-3">{selectedStory.image}</span>
+              <User className="w-16 h-16 text-primary mx-auto mb-3" />
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">{selectedStory.title}</h1>
               <p className="text-primary font-semibold mt-1">{selectedStory.name}</p>
               <span className="text-xs bg-accent text-accent-foreground px-3 py-1 rounded-full mt-2 inline-block">
@@ -69,7 +69,7 @@ export default function Inspiration() {
 
             <Card className="fairy-card mb-4">
               <CardContent className="pt-6">
-                <h3 className="font-bold text-foreground mb-3">⚡ Challenges Faced</h3>
+                <h3 className="font-bold text-foreground mb-3">Challenges Faced</h3>
                 <ul className="space-y-2">
                   {selectedStory.challenges.map((c, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
@@ -82,7 +82,7 @@ export default function Inspiration() {
 
             <Card className="fairy-card mb-4">
               <CardContent className="pt-6">
-                <h3 className="font-bold text-foreground mb-3">💎 Lessons Learned</h3>
+                <h3 className="font-bold text-foreground mb-3">Lessons Learned</h3>
                 <ul className="space-y-2">
                   {selectedStory.lessons.map((l, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
@@ -125,7 +125,7 @@ export default function Inspiration() {
             <Sparkles className="w-7 h-7 text-primary" />
             Inspiration Hub
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Stories that ignite your inner fire ✨</p>
+          <p className="text-muted-foreground text-sm mt-1">Stories that ignite your inner fire</p>
         </motion.div>
 
         <DailyQuote />
@@ -139,7 +139,7 @@ export default function Inspiration() {
                 filter === cat ? 'bg-primary text-primary-foreground shadow-soft' : 'bg-muted text-muted-foreground hover:bg-accent'
               }`}
             >
-              {cat === 'all' ? '✨ All' : CATEGORY_LABELS[cat]}
+              {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
             </button>
           ))}
         </div>
@@ -161,7 +161,7 @@ export default function Inspiration() {
               >
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-4xl">{story.image}</span>
+                    <User className="w-8 h-8 text-primary" />
                     <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                       {CATEGORY_LABELS[story.category]}
                     </span>

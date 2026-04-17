@@ -499,7 +499,7 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
             <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
               <Wand2 className="w-7 h-7 text-primary" /> AI Daily Routine
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">Your personalized day planner ✨ Keep the same plan until you choose to refresh it.</p>
+            <p className="text-muted-foreground text-sm mt-1">Your personalized day planner. Keep the same plan until you choose to refresh it.</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/routine-history")} className="rounded-xl gap-1.5 text-xs">
             <History className="w-4 h-4" /> History

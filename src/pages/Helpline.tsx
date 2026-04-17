@@ -34,13 +34,13 @@ export default function Helpline() {
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Helpline Numbers</h1>
             <p className="text-muted-foreground text-sm mt-2 max-w-md mx-auto">
-              You are not alone. Reach out to these India-based helplines anytime you need support. 💙
+              You are not alone. Reach out to these India-based helplines anytime you need support.
             </p>
           </motion.div>
 
           <motion.div variants={item} className="bg-accent/40 p-4 rounded-2xl text-center">
             <p className="text-sm font-medium text-foreground">
-              🚨 If you or someone you know is in immediate danger, please call <strong>112</strong> (Emergency) right away.
+              If you or someone you know is in immediate danger, please call <strong>112</strong> (Emergency) right away.
             </p>
           </motion.div>
 
@@ -61,7 +61,7 @@ export default function Helpline() {
                             href={`tel:${h.number}`}
                             className="text-sm font-bold text-primary hover:underline"
                           >
-                            📞 {h.number}
+                            {h.number}
                           </a>
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Clock className="w-3 h-3" /> {h.hours}
