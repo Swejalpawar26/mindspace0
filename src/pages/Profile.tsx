@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -15,8 +15,10 @@ export default function Profile() {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
   const [stats, setStats] = useState({ chats: 0, journals: 0, routines: 0 });
 
   useEffect(() => {
@@ -42,17 +44,36 @@ export default function Profile() {
   const saveProfile = async () => {
     setSaving(true);
     try {
+      const { error: authError } = await supabase.auth.updateUser({ data: { display_name: displayName } });
+      if (authError) throw authError;
+
       const { error } = await supabase
         .from("profiles")
         .update({ display_name: displayName, avatar_url: avatarUrl || null })
         .eq("user_id", user!.id);
       if (error) throw error;
+
       toast.success("Profile updated! ✨");
+      setIsEditing(false);
     } catch {
       toast.error("Failed to save profile");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAvatarFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setAvatarUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const initials = displayName
@@ -81,7 +102,11 @@ export default function Profile() {
           <Card className="shadow-card border-0 rounded-2xl">
             <CardContent className="pt-6 flex flex-col items-center gap-4">
               <Avatar className="w-20 h-20 border-4 border-primary/20">
-                <AvatarImage src={avatarUrl} />
+                {avatarUrl ? (
+                  <AvatarImage src={avatarUrl} />
+                ) : (
+                  <User className="w-10 h-10 text-primary" />
+                )}
                 <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">{initials}</AvatarFallback>
               </Avatar>
               <div className="text-center">
@@ -106,13 +131,27 @@ export default function Profile() {
                 <Label>Display Name</Label>
                 <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" className="mt-1" />
               </div>
-              <div>
-                <Label>Avatar URL</Label>
-                <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://example.com/avatar.jpg" className="mt-1" />
-              </div>
-              <Button onClick={saveProfile} disabled={saving} className="w-full fairy-btn">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Changes
+              {isEditing && (
+                <div>
+                  <Label>Profile Picture</Label>
+                  <Input type="file" accept="image/*" onChange={handleAvatarFileChange} className="mt-1" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {selectedFileName ? `Selected: ${selectedFileName}` : "Choose an image from your computer to use as your profile picture."}
+                  </p>
+                </div>
+              )}
+              <Button
+                type="button"
+                onClick={isEditing ? saveProfile : () => setIsEditing(true)}
+                disabled={saving}
+                className="w-full fairy-btn"
+              >
+                {isEditing ? (
+                  saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />
+                ) : (
+                  <User className="w-4 h-4 mr-2" />
+                )}
+                {isEditing ? "Save Changes" : "Edit Profile"}
               </Button>
             </CardContent>
           </Card>

@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Sparkles, RefreshCw, Save, CheckCircle2, Wand2, Plus, Pencil, Trash2, History } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { parseRoutineAIResponse } from "@/lib/routine";
 
 const GOAL_OPTIONS = ["Study", "Fitness", "Meditation", "Work", "Creative", "Social"];
 const INTEREST_OPTIONS = ["Coding", "Reading", "Gym", "Spirituality", "Art", "Music", "Gaming", "Cooking"];
@@ -70,22 +71,6 @@ export default function AIRoutine() {
       .maybeSingle();
 
     if (routine) {
-      // Check if routine is from today — if not, archive it and show fresh config
-      if (!isToday(routine.created_at)) {
-        await supabase.from("daily_routines").update({ is_active: false }).eq("id", routine.id);
-        // Keep previous config for convenience
-        setWakeUp(routine.wake_up_time);
-        setSleepTime(routine.sleep_time);
-        setGoals(routine.goals || []);
-        setStressLevel(routine.stress_level);
-        setFreeTime(routine.free_time || "4");
-        setInterests(routine.interests || []);
-        setActiveRoutineId(null);
-        setShowConfig(true);
-        setLoading(false);
-        return;
-      }
-
       setActiveRoutineId(routine.id);
       setWakeUp(routine.wake_up_time);
       setSleepTime(routine.sleep_time);
@@ -149,13 +134,11 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
       });
 
       const data = await resp.json();
-      const jsonMatch = (data.reply || "").match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("Invalid response");
-
-      const parsed: any[] = JSON.parse(jsonMatch[0]);
-      setTasks(parsed.map((t: any, i: number) => ({
-        time_slot: t.time_slot || "08:00", title: t.title || "Activity", category: t.category || "routine",
-        icon: t.icon || "⭐", is_completed: false, sort_order: i,
+      const parsed = parseRoutineAIResponse(data.reply || "");
+      setTasks(parsed.map((t, i) => ({
+        ...t,
+        is_completed: false,
+        sort_order: i,
       })));
       setShowConfig(false);
       toast.success("✨ Routine generated!");
@@ -242,7 +225,7 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
             <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
               <Wand2 className="w-7 h-7 text-primary" /> AI Daily Routine
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">Your personalized day planner ✨</p>
+            <p className="text-muted-foreground text-sm mt-1">Your personalized day planner ✨ Keep the same plan until you choose to refresh it.</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/routine-history")} className="rounded-xl gap-1.5 text-xs">
             <History className="w-4 h-4" /> History
@@ -331,7 +314,7 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
                       <Plus className="w-4 h-4 mr-1" /> Add Task
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
-                      <RefreshCw className="w-4 h-4 mr-1" /> Regenerate
+                      <RefreshCw className="w-4 h-4 mr-1" /> Refresh Routine
                     </Button>
                     {completionPercent === 100 && (
                       <Button size="sm" className="fairy-btn"><CheckCircle2 className="w-4 h-4 mr-1" /> All Done! 🎉</Button>

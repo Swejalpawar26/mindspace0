@@ -1,0 +1,26 @@
+import type { SVGProps } from "react";
+
+export function AppLogo({ className, size = 48, ...props }: { className?: string; size?: number } & SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 128 128"
+      width={size}
+      height={size}
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <defs>
+        <linearGradient id="app-logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#a855f7" />
+        </linearGradient>
+      </defs>
+      <rect width="128" height="128" rx="32" fill="url(#app-logo-gradient)" />
+      <path d="M36 34a34 34 0 0 1 60 24c0 18-13 31-24 37l-14 9-8-12c-8 1-20 0-24-4-8-8-8-20-8-24A34 34 0 0 1 36 34Z" fill="#fff" opacity="0.95" />
+      <path d="M62 42c-8 0-14 5-14 12s6 12 14 12 14-5 14-12-6-12-14-12Zm0 20c-4 0-6-2-6-6s2-6 6-6 6 2 6 6-2 6-6 6Z" fill="#7c3aed" opacity="0.92" />
+      <path d="M68 56c0 3-2 5-5 5s-5-2-5-5 2-5 5-5 5 2 5 5Z" fill="#7c3aed" />
+    </svg>
+  );
+}

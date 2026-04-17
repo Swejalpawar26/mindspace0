@@ -22,7 +22,6 @@ const items = [
   { title: "AI Routine", url: "/ai-routine", icon: Wand2 },
   { title: "Inspiration", url: "/inspiration", icon: Sparkles },
   { title: "Helpline", url: "/helpline", icon: Phone },
-  { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

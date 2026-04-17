@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
+import { replaceStoryReferences } from "@/lib/inspiration";
 
 interface ChatBubbleProps {
   role: "user" | "assistant";
@@ -8,6 +9,7 @@ interface ChatBubbleProps {
 
 export function ChatBubble({ role, content }: ChatBubbleProps) {
   const isUser = role === "user";
+  const enhancedContent = role === "assistant" ? replaceStoryReferences(content) : content;
 
   return (
     <motion.div
@@ -22,7 +24,7 @@ export function ChatBubble({ role, content }: ChatBubbleProps) {
         }`}
       >
         <div className="prose prose-sm max-w-none [&>p]:m-0">
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown>{enhancedContent}</ReactMarkdown>
         </div>
       </div>
     </motion.div>

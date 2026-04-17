@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageCircle, BarChart3, Shield } from "lucide-react";
+import { MessageCircle, BarChart3, Shield } from "lucide-react";
 import { motion } from "framer-motion";
+import { AppLogo } from "@/components/AppLogo";
 
 export default function Index() {
   return (
@@ -16,7 +17,7 @@ export default function Index() {
             transition={{ duration: 0.6 }}
           >
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full gradient-calm mb-6 shadow-soft">
-              <Heart className="w-10 h-10 text-primary-foreground" />
+              <AppLogo className="w-10 h-10" />
             </div>
             <h1 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4 leading-tight">
               Your Mind <br />Deserves Care

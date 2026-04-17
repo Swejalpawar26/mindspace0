@@ -50,10 +50,16 @@ export default function Dashboard() {
     loadData();
   }, [user]);
 
+  const isToday = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  };
+
   const loadData = async () => {
     const [chatRes, routineRes, moodRes] = await Promise.all([
       supabase.from("chat_messages").select("session_id, content, created_at, role").eq("user_id", user!.id).order("created_at", { ascending: false }),
-      supabase.from("daily_routines").select("id").eq("user_id", user!.id).eq("is_active", true).limit(1).maybeSingle(),
+      supabase.from("daily_routines").select("id, created_at").eq("user_id", user!.id).eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("mood_entries").select("*").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(100),
     ]);
 
