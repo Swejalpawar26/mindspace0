@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,58 @@ interface RoutineTask {
   sort_order: number;
 }
 
+interface StoredRoutine {
+  id: string;
+  created_at: string;
+  wake_up_time: string;
+  sleep_time: string;
+  goals: string[];
+  stress_level: string;
+  free_time: string | null;
+  interests: string[];
+  routine_data: Json | null;
+  is_active: boolean;
+}
+
+const getDateKey = (value: string | Date) => {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const getDayAnchor = (value: string | Date) => {
+  const date = new Date(value);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+};
+
+const addDays = (value: string | Date, amount: number) => {
+  const date = getDayAnchor(value);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount, 12, 0, 0, 0);
+};
+
+const daysBetween = (from: string | Date, to: string | Date) => {
+  const start = getDayAnchor(from);
+  const end = getDayAnchor(to);
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
+};
+
+const normalizeTasks = (items: RoutineTask[]) =>
+  [...items]
+    .sort((a, b) => a.time_slot.localeCompare(b.time_slot))
+    .map((task, index) => ({ ...task, sort_order: index }));
+
+const mapTaskRows = (taskRows: any[] = []): RoutineTask[] =>
+  normalizeTasks(
+    taskRows.map((task) => ({
+      id: task.id,
+      time_slot: task.time_slot,
+      title: task.title,
+      category: task.category,
+      icon: task.icon || "⭐",
+      is_completed: Boolean(task.is_completed),
+      sort_order: task.sort_order ?? 0,
+    }))
+  );
+
 export default function AIRoutine() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -41,6 +94,7 @@ export default function AIRoutine() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeRoutineId, setActiveRoutineId] = useState<string | null>(null);
+  const [activeRoutineDate, setActiveRoutineDate] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -54,63 +108,217 @@ export default function AIRoutine() {
     if (user) loadActiveRoutine();
   }, [user]);
 
-  const isToday = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const applyRoutinePreferences = (routine: StoredRoutine) => {
+    setWakeUp(routine.wake_up_time);
+    setSleepTime(routine.sleep_time);
+    setGoals(routine.goals || []);
+    setStressLevel(routine.stress_level);
+    setFreeTime(routine.free_time ?? "4");
+    setInterests(routine.interests || []);
+  };
+
+  const setRoutineState = (routine: StoredRoutine, nextTasks: RoutineTask[]) => {
+    applyRoutinePreferences(routine);
+    setActiveRoutineId(routine.id);
+    setActiveRoutineDate(getDateKey(routine.created_at));
+    setTasks(nextTasks);
+    setShowConfig(nextTasks.length === 0);
+  };
+
+  const loadTasksForRoutine = async (routineId: string) => {
+    const { data, error } = await supabase
+      .from("routine_tasks")
+      .select("*")
+      .eq("routine_id", routineId)
+      .order("sort_order", { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  };
+
+  const createRoutineFromTemplate = async (
+    templateRoutine: StoredRoutine,
+    templateTasks: RoutineTask[],
+    date: Date,
+    isActive: boolean
+  ) => {
+    const timestamp = getDayAnchor(date).toISOString();
+    const preparedTasks = normalizeTasks(
+      templateTasks.map((task) => ({
+        time_slot: task.time_slot,
+        title: task.title,
+        category: task.category,
+        icon: task.icon,
+        is_completed: false,
+        sort_order: 0,
+      }))
+    );
+
+    const { data: routine, error } = await supabase
+      .from("daily_routines")
+      .insert([{
+        user_id: user!.id,
+        wake_up_time: templateRoutine.wake_up_time,
+        sleep_time: templateRoutine.sleep_time,
+        goals: templateRoutine.goals || [],
+        stress_level: templateRoutine.stress_level,
+        free_time: templateRoutine.free_time,
+        interests: templateRoutine.interests || [],
+        routine_data: templateRoutine.routine_data ?? null,
+        is_active: isActive,
+        created_at: timestamp,
+        updated_at: timestamp,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!preparedTasks.length) {
+      return { routine: routine as StoredRoutine, tasks: preparedTasks };
+    }
+
+    const taskInserts = preparedTasks.map((task, index) => ({
+      routine_id: routine.id,
+      user_id: user!.id,
+      time_slot: task.time_slot,
+      title: task.title,
+      category: task.category,
+      icon: task.icon,
+      is_completed: false,
+      sort_order: index,
+      created_at: timestamp,
+    }));
+
+    const { data: insertedTasks, error: tasksError } = await supabase
+      .from("routine_tasks")
+      .insert(taskInserts)
+      .select();
+
+    if (tasksError) throw tasksError;
+
+    return {
+      routine: routine as StoredRoutine,
+      tasks: mapTaskRows(insertedTasks || taskInserts),
+    };
   };
 
   const loadActiveRoutine = async () => {
-    const { data: routine } = await supabase
-      .from("daily_routines")
-      .select("*")
-      .eq("user_id", user!.id)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    setLoading(true);
 
-    if (routine) {
-      setActiveRoutineId(routine.id);
-      setWakeUp(routine.wake_up_time);
-      setSleepTime(routine.sleep_time);
-      setGoals(routine.goals || []);
-      setStressLevel(routine.stress_level);
-      setFreeTime(routine.free_time || "4");
-      setInterests(routine.interests || []);
-
-      const { data: taskData } = await supabase
-        .from("routine_tasks")
+    try {
+      const { data: routines, error } = await supabase
+        .from("daily_routines")
         .select("*")
-        .eq("routine_id", routine.id)
-        .order("sort_order", { ascending: true });
-
-      if (taskData) {
-        setTasks(taskData.map((t: any) => ({
-          id: t.id, time_slot: t.time_slot, title: t.title, category: t.category,
-          icon: t.icon || "⭐", is_completed: t.is_completed, sort_order: t.sort_order,
-        })));
-      }
-
-      // Smart suggestion based on incomplete tasks
-      const { data: incomplete } = await supabase
-        .from("routine_tasks")
-        .select("category")
         .eq("user_id", user!.id)
-        .eq("is_completed", false)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(120);
 
-      if (incomplete && incomplete.length > 0) {
-        const skippedExercise = incomplete.filter((t: any) => t.category === "exercise").length;
-        const skippedMeditation = incomplete.filter((t: any) => t.category === "meditation").length;
-        if (skippedExercise >= 3) setSuggestion("💪 You've been skipping exercise — try a quick 10-min walk today!");
-        else if (skippedMeditation >= 2) setSuggestion("🧘 Meditation has been missed lately — even 5 minutes can help!");
+      if (error) throw error;
+
+      const latestRoutine = routines?.[0] as StoredRoutine | undefined;
+
+      if (!latestRoutine) {
+        setActiveRoutineId(null);
+        setActiveRoutineDate(null);
+        setTasks([]);
+        setSuggestion(null);
+        setShowConfig(true);
+        return;
       }
-    } else {
+
+      applyRoutinePreferences(latestRoutine);
+
+      const todayKey = getDateKey(new Date());
+      const latestKey = getDateKey(latestRoutine.created_at);
+      let nextSuggestion: string | null = null;
+
+      if (latestKey === todayKey) {
+        const { error: clearOldActivesError } = await supabase
+          .from("daily_routines")
+          .update({ is_active: false })
+          .eq("user_id", user!.id)
+          .eq("is_active", true)
+          .neq("id", latestRoutine.id);
+
+        if (clearOldActivesError) throw clearOldActivesError;
+
+        if (!latestRoutine.is_active) {
+          const { error: activateError } = await supabase
+            .from("daily_routines")
+            .update({ is_active: true })
+            .eq("id", latestRoutine.id);
+
+          if (activateError) throw activateError;
+        }
+
+        const latestTasks = mapTaskRows(await loadTasksForRoutine(latestRoutine.id));
+        setRoutineState({ ...latestRoutine, is_active: true }, latestTasks);
+      }
+      else {
+        const templateTasks = mapTaskRows(await loadTasksForRoutine(latestRoutine.id));
+
+        if (!templateTasks.length) {
+          setActiveRoutineId(null);
+          setActiveRoutineDate(null);
+          setTasks([]);
+          setShowConfig(true);
+          nextSuggestion = "Save one routine once and your fresh checklist will reset automatically every day.";
+        } else {
+          const { error: deactivateError } = await supabase
+            .from("daily_routines")
+            .update({ is_active: false })
+            .eq("user_id", user!.id)
+            .eq("is_active", true);
+
+          if (deactivateError) throw deactivateError;
+
+          const missedDays = Math.max(0, daysBetween(latestRoutine.created_at, new Date()) - 1);
+
+          for (let dayOffset = 1; dayOffset <= missedDays; dayOffset += 1) {
+            await createRoutineFromTemplate(latestRoutine, templateTasks, addDays(latestRoutine.created_at, dayOffset), false);
+          }
+
+          const { routine: todayRoutine, tasks: todayTasks } = await createRoutineFromTemplate(
+            latestRoutine,
+            templateTasks,
+            new Date(),
+            true
+          );
+
+          setRoutineState(todayRoutine, todayTasks);
+          nextSuggestion = missedDays > 0
+            ? `✨ Fresh routine ready. ${missedDays} skipped day${missedDays > 1 ? "s were" : " was"} saved as incomplete in history.`
+            : "✨ Fresh routine ready for today.";
+        }
+      }
+
+      if (!nextSuggestion) {
+        const { data: incomplete } = await supabase
+          .from("routine_tasks")
+          .select("category")
+          .eq("user_id", user!.id)
+          .eq("is_completed", false)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (incomplete && incomplete.length > 0) {
+          const skippedExercise = incomplete.filter((task: any) => task.category === "exercise").length;
+          const skippedMeditation = incomplete.filter((task: any) => task.category === "meditation").length;
+
+          if (skippedExercise >= 3) nextSuggestion = "💪 You've been skipping exercise — try a quick 10-min walk today!";
+          else if (skippedMeditation >= 2) nextSuggestion = "🧘 Meditation has been missed lately — even 5 minutes can help!";
+        }
+      }
+
+      setSuggestion(nextSuggestion);
+    } catch {
+      toast.error("Failed to load routine");
       setShowConfig(true);
+      setSuggestion(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const toggleGoal = (g: string) => setGoals((prev) => prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]);
@@ -135,11 +343,11 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
 
       const data = await resp.json();
       const parsed = parseRoutineAIResponse(data.reply || "");
-      setTasks(parsed.map((t, i) => ({
+      setTasks(normalizeTasks(parsed.map((t, i) => ({
         ...t,
         is_completed: false,
         sort_order: i,
-      })));
+      }))));
       setShowConfig(false);
       toast.success("✨ Routine generated!");
     } catch {
@@ -152,25 +360,93 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
   const saveRoutine = async () => {
     if (!tasks.length) return;
     setSaving(true);
+
     try {
-      if (activeRoutineId) {
-        await supabase.from("daily_routines").update({ is_active: false }).eq("id", activeRoutineId);
+      const normalized = normalizeTasks(tasks);
+      const todayKey = getDateKey(new Date());
+      const routineDetails = {
+        wake_up_time: wakeUp,
+        sleep_time: sleepTime,
+        goals,
+        stress_level: stressLevel,
+        free_time: freeTime,
+        interests,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      let routineId = activeRoutineId;
+      let routineCreatedAt = new Date().toISOString();
+
+      if (routineId && activeRoutineDate === todayKey) {
+        const { data: updatedRoutine, error: updateRoutineError } = await supabase
+          .from("daily_routines")
+          .update(routineDetails)
+          .eq("id", routineId)
+          .select()
+          .single();
+
+        if (updateRoutineError) throw updateRoutineError;
+
+        routineCreatedAt = updatedRoutine.created_at;
+
+        const { error: deleteTasksError } = await supabase
+          .from("routine_tasks")
+          .delete()
+          .eq("routine_id", routineId);
+
+        if (deleteTasksError) throw deleteTasksError;
+      } else {
+        const { error: deactivateExistingError } = await supabase
+          .from("daily_routines")
+          .update({ is_active: false })
+          .eq("user_id", user!.id)
+          .eq("is_active", true);
+
+        if (deactivateExistingError) throw deactivateExistingError;
+
+        const { data: routine, error } = await supabase
+          .from("daily_routines")
+          .insert([{
+            user_id: user!.id,
+            ...routineDetails,
+            created_at: new Date().toISOString(),
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+        routineId = routine.id;
+        routineCreatedAt = routine.created_at;
       }
 
-      const { data: routine, error } = await supabase.from("daily_routines").insert({
-        user_id: user!.id, wake_up_time: wakeUp, sleep_time: sleepTime, goals,
-        stress_level: stressLevel, free_time: freeTime, interests, is_active: true,
-      }).select().single();
-      if (error) throw error;
+      if (!routineId) throw new Error("Routine could not be saved");
 
-      const taskInserts = tasks.map((t, i) => ({
-        routine_id: routine.id, user_id: user!.id, time_slot: t.time_slot, title: t.title,
-        category: t.category, icon: t.icon, is_completed: t.is_completed, sort_order: i,
+      const taskInserts = normalized.map((task, index) => ({
+        routine_id: routineId,
+        user_id: user!.id,
+        time_slot: task.time_slot,
+        title: task.title,
+        category: task.category,
+        icon: task.icon,
+        is_completed: task.is_completed,
+        sort_order: index,
       }));
-      await supabase.from("routine_tasks").insert(taskInserts);
-      setActiveRoutineId(routine.id);
+
+      const { data: savedTasks, error: saveTasksError } = await supabase
+        .from("routine_tasks")
+        .insert(taskInserts)
+        .select();
+
+      if (saveTasksError) throw saveTasksError;
+
+      setActiveRoutineId(routineId);
+      setActiveRoutineDate(getDateKey(routineCreatedAt));
+      setTasks(mapTaskRows(savedTasks || taskInserts));
+      setShowConfig(false);
       setEditMode(false);
-      toast.success("Routine saved! ✨");
+      setShowAddTask(false);
+      toast.success(activeRoutineId && activeRoutineDate === todayKey ? "Routine updated! ✨" : "Routine saved! ✨");
     } catch {
       toast.error("Failed to save routine");
     } finally {
@@ -193,16 +469,14 @@ Return ONLY a JSON array: [{"time_slot":"HH:MM","title":"...","category":"study|
       time_slot: newTaskTime, title: newTaskTitle.trim(), category: newTaskCategory,
       icon: "⭐", is_completed: false, sort_order: tasks.length,
     };
-    const updated = [...tasks, newTask].sort((a, b) => a.time_slot.localeCompare(b.time_slot));
-    updated.forEach((t, i) => t.sort_order = i);
-    setTasks(updated);
+    setTasks(normalizeTasks([...tasks, newTask]));
     setNewTaskTitle("");
     setShowAddTask(false);
     toast.success("Task added!");
   };
 
   const removeTask = (index: number) => {
-    setTasks((prev) => prev.filter((_, i) => i !== index));
+    setTasks((prev) => normalizeTasks(prev.filter((_, i) => i !== index)));
   };
 
   const updateTaskTitle = (index: number, title: string) => {
